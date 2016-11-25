@@ -46,45 +46,38 @@ init() -> init(true,'undefined').
     ForceDisk   :: 'undefined' | 'true' | 'false',
     Result      :: ok.
 
-init(SendRPC,ForceDisk) ->
+init(SendRPC, ForceDisk) ->
+    ensure_mnesia_running(),
+    
     IsDiskNode = case ForceDisk of
         'undefined' -> 
             _ = application:load(?app),
             is_disk_node();
         _ -> ForceDisk
     end,
-    IsVirginNode = node_is_virgin(),
-    ?info("Node ~p IsDiskNode is ~p",[node(), IsDiskNode]),
-    case mnesia:system_info(is_running) of
-        'yes' ->
-            ?error("Mnesia running already. If you want to restart, please first do mnesia:stop().");
-        'no' when IsDiskNode =:= true ->
-            ok = ensure_mnesia_not_running(),
-            ok = ensure_mnesia_dir(),
-            init(SendRPC, true, IsVirginNode);
-        'no' when IsDiskNode =:= false ->
-            ok = ensure_mnesia_not_running(),
-            ok = case IsVirginNode of
-                true -> 
-                    ok;
-                false -> 
-                    reset_mnesia_folder()
-            end,
-            init(SendRPC, false, IsVirginNode)
-    end.
 
-init(SendRPC, IsDiskNode, IsVirginNode) ->
+    _ = case IsDiskNode of
+        true ->
+            ensure_mnesia_dir(),
+            mnesia_eleveldb:register();
+        false ->
+            ok
+    end,
+
+    IsVirginNode = node_is_virgin(),
     ThisNode = node(),
+
+    ?info("Node ~p IsDiskNode is ~p",[ThisNode, IsDiskNode]),
+
     MnesiaNodes = ensure_connected_to_nodes(),
+
     NodesWithRunningMnesia = get_running_mnesia_nodes(MnesiaNodes),
     NodesWithoutRunningMnesia = MnesiaNodes -- NodesWithRunningMnesia,
     
-    ok = try_start(IsDiskNode, IsVirginNode),
-
     % send RPC call to start mnesia if we have another nodes without running mnesia
     _ = case SendRPC of
         true when NodesWithoutRunningMnesia =/= [] ->
-            _ = rpc:multicall(NodesWithoutRunningMnesia, 'mcluster', init, [false,'undefined']),
+            Result = rpc:multicall(NodesWithoutRunningMnesia, mcluster, init, [false,'undefined']),
             rpc:multicall(MnesiaNodes, mnesia, change_config, ['extra_db_nodes', [ThisNode]]);
         _ when MnesiaNodes =/= [] ->
             rpc:multicall(NodesWithRunningMnesia, mnesia, change_config, ['extra_db_nodes', [ThisNode]]);
@@ -103,17 +96,17 @@ init(SendRPC, IsDiskNode, IsVirginNode) ->
     end.
 
 % @doc try mnesia start and reset folder in case on fail 
-try_start(IsDiskNode, IsVirginNode) ->
-    case mnesia:start() of
-        ok ->
-            {ok, _} = mnesia_eleveldb:register(),
-            ensure_mnesia_running();
-        Something when IsDiskNode =:= true andalso IsVirginNode =:= false ->
-            ?error(Something),
-            ok = ensure_mnesia_not_running(),
-            ok = reset_mnesia_folder(),
-            try_start(IsDiskNode, true)
-    end.
+%try_start(IsDiskNode, IsVirginNode) ->
+%    case mnesia:start() of
+%        ok ->
+%            {ok, _} = mnesia_eleveldb:register(),
+%            ensure_mnesia_running();
+%        Something when IsDiskNode =:= true andalso IsVirginNode =:= false ->
+%            ?error(Something),
+%            ok = ensure_mnesia_not_running(),
+%            ok = reset_mnesia_folder(),
+%            try_start(IsDiskNode, true)
+%    end.
 
 % @doc get nodes with running mnesia
 -spec get_running_mnesia_nodes(AllNodes) -> Result when
@@ -270,6 +263,8 @@ ensure_mnesia_running() ->
         'starting' ->
             mlibs:wait_for("Mnesia startning. Waiting for full start."),
             ensure_mnesia_running();
+        'no' ->
+            mnesia:start();
         Reason when Reason =:= 'no'; Reason =:= 'stopping' ->
             throw({error, mnesia_not_running})
     end.

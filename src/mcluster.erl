@@ -13,8 +13,6 @@
     -compile(export_all).
 -endif.
 
--include("deps/teaser/include/utils.hrl").
-
 % @doc public api 
 -export([
         init/0,
@@ -67,7 +65,7 @@ init(SendRPC, ForceDisk) ->
     IsVirginNode = node_is_virgin(),
     ThisNode = node(),
 
-    ?info("Node ~p IsDiskNode is ~p",[ThisNode, IsDiskNode]),
+    lager:info("Node ~p IsDiskNode is ~p",[ThisNode, IsDiskNode]),
 
     MnesiaNodes = ensure_connected_to_nodes(),
 
@@ -77,7 +75,7 @@ init(SendRPC, ForceDisk) ->
     % send RPC call to start mnesia if we have another nodes without running mnesia
     _ = case SendRPC of
         true when NodesWithoutRunningMnesia =/= [] ->
-            Result = rpc:multicall(NodesWithoutRunningMnesia, mcluster, init, [false,'undefined']),
+            _ = rpc:multicall(NodesWithoutRunningMnesia, mcluster, init, [false,'undefined']),
             rpc:multicall(MnesiaNodes, mnesia, change_config, ['extra_db_nodes', [ThisNode]]);
         _ when MnesiaNodes =/= [] ->
             rpc:multicall(NodesWithRunningMnesia, mnesia, change_config, ['extra_db_nodes', [ThisNode]]);
@@ -86,7 +84,7 @@ init(SendRPC, ForceDisk) ->
 
     _ = case mnesia:change_config('extra_db_nodes', MnesiaNodes) of
         {ok, Value} -> Value;
-        {error, Reason} -> ?error(Reason)
+        {error, Reason} -> lager:error(Reason)
     end,
 
     case IsDiskNode of
@@ -94,19 +92,6 @@ init(SendRPC, ForceDisk) ->
             mnesia:change_table_copy_type(schema, node(), 'disc_copies');
         _ -> ok
     end.
-
-% @doc try mnesia start and reset folder in case on fail 
-%try_start(IsDiskNode, IsVirginNode) ->
-%    case mnesia:start() of
-%        ok ->
-%            {ok, _} = mnesia_eleveldb:register(),
-%            ensure_mnesia_running();
-%        Something when IsDiskNode =:= true andalso IsVirginNode =:= false ->
-%            ?error(Something),
-%            ok = ensure_mnesia_not_running(),
-%            ok = reset_mnesia_folder(),
-%            try_start(IsDiskNode, true)
-%    end.
 
 % @doc get nodes with running mnesia
 -spec get_running_mnesia_nodes(AllNodes) -> Result when
@@ -170,10 +155,10 @@ init_table(TableName, TableDef, Timeout) ->
             Result = mnesia:create_table(TableName, ExtDef),
             TableInfoRead = mnesia:table_info(TableName, 'where_to_read'),
             TableInfoWrite = mnesia:table_info(TableName, 'where_to_read'),
-            ?info("created table ~p with def ~p, read from ~p write to: ",[ExtDef,TableInfoRead,TableInfoWrite]),
+            lager:info("created table ~p with def ~p, read from ~p write to: ",[ExtDef,TableInfoRead,TableInfoWrite]),
             Result;
         true ->
-            ?info("table ~p exists. going to load", [TableName]),
+            lager:info("table ~p exists. going to load", [TableName]),
             wait_table([TableName], Timeout)
     end.
     %mnesia_lib:set({TableName, 'where_to_read'}, node()).
@@ -186,16 +171,16 @@ init_table(TableName, TableDef, Timeout) ->
 wait_table(TableNames, Timeout) ->
     case mnesia:wait_for_tables(TableNames, Timeout) of
         ok -> 
-            ?info("Tables ~p loaded",[TableNames]),
+            lager:info("Tables ~p loaded",[TableNames]),
             {TableNames, ok};
         {timeout, BadTabs} ->
-            ?warning("Timeout occurs during mnesia:wait_for_tables. ~p",[BadTabs]),
+            lager:warning("Timeout occurs during mnesia:wait_for_tables. ~p",[BadTabs]),
             _ = lists:map(fun(Table) ->
                 case get_running_mnesia_nodes(mnesia:table_info(Table, leveldb_copies)) of 
                     [] -> 
                         throw({error, {"Do not have active replicas who have table as leveldb_copies", Table}});
                     Replicas when is_list(Replicas) ->
-                        ?info("Going to force_load ~p from leveldb_copies nodes ~p",[Table,Replicas]),
+                        lager:info("Going to force_load ~p from leveldb_copies nodes ~p",[Table,Replicas]),
                         rpc:multicall(Replicas, 'mcluster', force_load, [Table])
                 end
             end, BadTabs),
@@ -285,7 +270,7 @@ ensure_mnesia_dir() ->
     MnesiaDir = ?mnesiadir ++ "/",
     case filelib:ensure_dir(?mnesiadir) of
         {error, Reason} ->
-            ?error("Mnesia dir \"~p\" cann't create", [MnesiaDir]),
+            lager:error("Mnesia dir \"~p\" cann't create", [MnesiaDir]),
             throw({'error', {'cannot_create_mnesia_dir', MnesiaDir, Reason}});
         ok ->
             ok
@@ -339,7 +324,7 @@ force_load(Table) when is_atom(Table) ->
 reset_mnesia_folder() ->
     stop_mnesia(),
     Name = ?mnesiadir++"_backup_"++integer_to_list(mlibs:get_time()),
-    ?info("Going to reset mnesia folder. Backup saved to ~p", [Name]),
+    lager:info("Going to reset mnesia folder. Backup saved to ~p", [Name]),
     file:rename(?mnesiadir, Name).
 
 % @doc reset mnesia folder and do not save backup

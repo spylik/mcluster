@@ -45,6 +45,7 @@ init() -> init(true,'undefined').
     Result      :: ok.
 
 init(SendRPC, ForceDisk) ->
+    application:load(?app),
     ensure_mnesia_running(),
     
     IsDiskNode = case ForceDisk of
@@ -53,15 +54,7 @@ init(SendRPC, ForceDisk) ->
             is_disk_node();
         _ -> ForceDisk
     end,
-
-    _ = case IsDiskNode of
-        true ->
-            ensure_mnesia_dir(),
-            mnesia_eleveldb:register();
-        false ->
-            ok
-    end,
-
+    
     IsVirginNode = node_is_virgin(),
     ThisNode = node(),
 
@@ -71,6 +64,10 @@ init(SendRPC, ForceDisk) ->
 
     NodesWithRunningMnesia = get_running_mnesia_nodes(MnesiaNodes),
     NodesWithoutRunningMnesia = MnesiaNodes -- NodesWithRunningMnesia,
+
+    % TODO: this is kind of hackie way (cuz anyway mnesia is started already before)
+    % need investigate more how to merge schema via right way
+    ok = try_start(IsDiskNode, IsVirginNode),
     
     % send RPC call to start mnesia if we have another nodes without running mnesia
     _ = case SendRPC of
@@ -91,6 +88,25 @@ init(SendRPC, ForceDisk) ->
         true when IsVirginNode =:= true ->
             mnesia:change_table_copy_type(schema, node(), 'disc_copies');
         _ -> ok
+    end.
+
+% @doc try mnesia start and reset folder in case on fail 
+-spec try_start(IsDiskNode, IsVirginNode) -> Result when
+    IsDiskNode  :: boolean(),
+    IsVirginNode:: boolean(),
+    Result      :: ok.
+
+try_start(IsDiskNode, IsVirginNode) ->
+    case mnesia:start() of
+        ok ->
+            {ok, _} = mnesia_eleveldb:register(),
+            ensure_mnesia_running();
+        Something when IsDiskNode =:= true andalso IsVirginNode =:= false ->
+            error_logger:error_msg("~p",[Something]),
+            ok = ensure_mnesia_not_running(),
+            ok = reset_mnesia_folder(),
+            ok = ensure_mnesia_dir(),
+            try_start(IsDiskNode, true)
     end.
 
 % @doc get nodes with running mnesia

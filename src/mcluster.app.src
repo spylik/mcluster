@@ -1,6 +1,6 @@
 {application, mcluster, [
     {description, "Clustered mnesia routines"},
-    {vsn, "0.0.3"},
+    {vsn, "0.0.4"},
     {id, "mcluster"},
     {modules, []},
     {registered, [mcluster]},

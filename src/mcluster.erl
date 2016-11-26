@@ -65,7 +65,7 @@ init(SendRPC, ForceDisk) ->
     IsVirginNode = node_is_virgin(),
     ThisNode = node(),
 
-    lager:info("Node ~p IsDiskNode is ~p",[ThisNode, IsDiskNode]),
+    error_logger:info_msg("Node ~p IsDiskNode is ~p",[ThisNode, IsDiskNode]),
 
     MnesiaNodes = ensure_connected_to_nodes(),
 
@@ -84,7 +84,7 @@ init(SendRPC, ForceDisk) ->
 
     _ = case mnesia:change_config('extra_db_nodes', MnesiaNodes) of
         {ok, Value} -> Value;
-        {error, Reason} -> lager:error(Reason)
+        {error, Reason} -> error_logger:error_msg("~p",[Reason])
     end,
 
     case IsDiskNode of
@@ -155,10 +155,10 @@ init_table(TableName, TableDef, Timeout) ->
             Result = mnesia:create_table(TableName, ExtDef),
             TableInfoRead = mnesia:table_info(TableName, 'where_to_read'),
             TableInfoWrite = mnesia:table_info(TableName, 'where_to_read'),
-            lager:info("created table ~p with def ~p, read from ~p write to: ",[ExtDef,TableInfoRead,TableInfoWrite]),
+            error_logger:info_msg("created table ~p with def ~p, read from ~p write to: ",[ExtDef,TableInfoRead,TableInfoWrite]),
             Result;
         true ->
-            lager:info("table ~p exists. going to load", [TableName]),
+            error_logger:info_msg("table ~p exists. going to load", [TableName]),
             wait_table([TableName], Timeout)
     end.
     %mnesia_lib:set({TableName, 'where_to_read'}, node()).
@@ -171,16 +171,16 @@ init_table(TableName, TableDef, Timeout) ->
 wait_table(TableNames, Timeout) ->
     case mnesia:wait_for_tables(TableNames, Timeout) of
         ok -> 
-            lager:info("Tables ~p loaded",[TableNames]),
+            error_logger:info_msg("Tables ~p loaded",[TableNames]),
             {TableNames, ok};
         {timeout, BadTabs} ->
-            lager:warning("Timeout occurs during mnesia:wait_for_tables. ~p",[BadTabs]),
+            error_logger:warning_msg("Timeout occurs during mnesia:wait_for_tables. ~p",[BadTabs]),
             _ = lists:map(fun(Table) ->
                 case get_running_mnesia_nodes(mnesia:table_info(Table, leveldb_copies)) of 
                     [] -> 
                         throw({error, {"Do not have active replicas who have table as leveldb_copies", Table}});
                     Replicas when is_list(Replicas) ->
-                        lager:info("Going to force_load ~p from leveldb_copies nodes ~p",[Table,Replicas]),
+                        error_logger:info_msg("Going to force_load ~p from leveldb_copies nodes ~p",[Table,Replicas]),
                         rpc:multicall(Replicas, 'mcluster', force_load, [Table])
                 end
             end, BadTabs),
@@ -270,7 +270,7 @@ ensure_mnesia_dir() ->
     MnesiaDir = ?mnesiadir ++ "/",
     case filelib:ensure_dir(?mnesiadir) of
         {error, Reason} ->
-            lager:error("Mnesia dir \"~p\" cann't create", [MnesiaDir]),
+            error_logger:error_msg("Mnesia dir \"~p\" cann't create", [MnesiaDir]),
             throw({'error', {'cannot_create_mnesia_dir', MnesiaDir, Reason}});
         ok ->
             ok
@@ -324,7 +324,7 @@ force_load(Table) when is_atom(Table) ->
 reset_mnesia_folder() ->
     stop_mnesia(),
     Name = ?mnesiadir++"_backup_"++integer_to_list(mlibs:get_time()),
-    lager:info("Going to reset mnesia folder. Backup saved to ~p", [Name]),
+    error_logger:info_msg("Going to reset mnesia folder. Backup saved to ~p", [Name]),
     file:rename(?mnesiadir, Name).
 
 % @doc reset mnesia folder and do not save backup

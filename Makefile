@@ -44,6 +44,19 @@ DEPS = teaser lager mnesia_eleveldb
 
 SHELL_DEPS = sync
 
+ifeq ($(USER),travis)
+    TEST_DEPS += covertool
+    dep_covertool = git https://github.com/idubrov/covertool
+endif
+
+# --------------------------------------------------------------------
+# Development enviroment ("make shell" to run it).
+# --------------------------------------------------------------------
+
 SHELL_OPTS = +c true +C multi_time_warp -pa ebin/ test/ -eval 'lager:start(), mlibs:discover()' -env ERL_LIBS deps -run mlibs autotest_on_compile -sname mcluster
+
+# --------------------------------------------------------------------
+# We using erlang.mk 
+# --------------------------------------------------------------------
 
 include erlang.mk

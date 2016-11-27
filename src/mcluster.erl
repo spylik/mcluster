@@ -65,8 +65,6 @@ init(SendRPC, ForceDisk) ->
     NodesWithRunningMnesia = get_running_mnesia_nodes(MnesiaNodes),
     NodesWithoutRunningMnesia = MnesiaNodes -- NodesWithRunningMnesia,
 
-    % TODO: this is kind of hackie way (cuz anyway mnesia is started already before)
-    % need investigate more how to merge schema via right way
     ok = try_start(IsDiskNode, IsVirginNode),
     
     % send RPC call to start mnesia if we have another nodes without running mnesia

@@ -6,7 +6,9 @@
     {registered, [mcluster]},
     {applications, [
         kernel,
-        stdlib,
+        stdlib
+    ]},
+    {included_applications, [
         mnesia
     ]}
 ]}.

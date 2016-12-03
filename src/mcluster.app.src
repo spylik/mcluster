@@ -1,14 +1,8 @@
-{application, mcluster, [
-    {description, "Clustered mnesia routines"},
-    {vsn, "0.0.4"},
-    {id, "mcluster"},
-    {modules, []},
-    {registered, [mcluster]},
-    {applications, [
-        kernel,
-        stdlib
-    ]},
-    {included_applications, [
-        mnesia
-    ]}
-]}.
+{application,mcluster,
+             [{description,"Clustered mnesia routines"},
+              {vsn,"0.0.4"},
+              {id,"mcluster"},
+              {modules,[]},
+              {registered,[mcluster]},
+              {applications,[kernel,stdlib]},
+              {included_applications,[mnesia,mnesia_eleveldb]}]}.

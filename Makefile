@@ -5,10 +5,8 @@ PROJECT = mcluster
 # --------------------------------------------------------------------
 
 # default compile mode
-ERLC_OPTS ?= $(ERLC_GLOBAL_OPTS)
-ERLC_OPTS += +warn_export_all +warn_export_vars +warn_unused_import +warn_untyped_record +warn_missing_spec +warn_missing_spec_all
+ERLC_OPTS ?= +warn_export_all +warn_export_vars +warn_unused_import +warn_untyped_record +warn_missing_spec +warn_missing_spec_all -Werror
 ERLC_OPTS += +'{parse_transform, lager_transform}'
-ERLC_OPTS += +warn_missing_spec -Werror
 
 # if MODE is not defined it means we are in development enviroment
 ifeq ($(MODE),release)

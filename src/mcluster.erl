@@ -45,7 +45,7 @@ init() -> init(true,'undefined').
     Result      :: ok.
 
 init(SendRPC, ForceDisk) ->
-    application:load(?app),
+    _ = application:load(?app),
     ensure_mnesia_running(),
     
     IsDiskNode = case ForceDisk of

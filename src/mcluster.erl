@@ -124,6 +124,8 @@ is_running() ->
     {node(), mnesia:system_info('is_running')}.
 
 % @doc try connect to mnesia nodes from sys.config
+-spec ensure_connected_to_nodes() -> Result when
+    Result  :: [node()].
 ensure_connected_to_nodes() ->
     Nodes = application:get_env(?app, 'db_ram_copies', []) ++ application:get_env(?app, 'db_leveldb_copies', []),
     MnesiaNodes = [N || N <- Nodes -- [node()], net_adm:ping(N) =:= 'pong'],

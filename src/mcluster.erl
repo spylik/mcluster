@@ -45,13 +45,12 @@ init() -> init(true,'undefined').
     Result      :: ok.
 
 init(SendRPC, ForceDisk) ->
-    _ = application:load(?app),
     ensure_mnesia_running(),
     
     IsDiskNode = case ForceDisk of
         'undefined' -> 
             _ = application:load(?app),
-            is_disk_node();
+            is_disk_node(application:get_env(?app, 'db_leveldb_copies', []));
         _ -> ForceDisk
     end,
     
@@ -59,8 +58,11 @@ init(SendRPC, ForceDisk) ->
     ThisNode = node(),
 
     error_logger:info_msg("Node ~p IsDiskNode is ~p",[ThisNode, IsDiskNode]),
-
-    MnesiaNodes = ensure_connected_to_nodes(),
+    
+    MnesiaNodes = ensure_connected_to_nodes(
+        application:get_env(?app, 'db_ram_copies', []) ++
+        application:get_env(?app, 'db_leveldb_copies', [])
+    ),
 
     NodesWithRunningMnesia = get_running_mnesia_nodes(MnesiaNodes),
     NodesWithoutRunningMnesia = MnesiaNodes -- NodesWithRunningMnesia,
@@ -124,26 +126,27 @@ is_running() ->
     {node(), mnesia:system_info('is_running')}.
 
 % @doc try connect to mnesia nodes from sys.config
--spec ensure_connected_to_nodes() -> Result when
+-spec ensure_connected_to_nodes(Nodes) -> Result when
+    Nodes   :: [node()],
     Result  :: [node()].
-ensure_connected_to_nodes() ->
-    Nodes = application:get_env(?app, 'db_ram_copies', []) ++ application:get_env(?app, 'db_leveldb_copies', []),
+ensure_connected_to_nodes(Nodes) ->
     MnesiaNodes = [N || N <- Nodes -- [node()], net_adm:ping(N) =:= 'pong'],
     case MnesiaNodes of
         [] when Nodes =/= [] -> 
             mlibs:wait_for("Waitings for more nodes"),
-            ensure_connected_to_nodes();
+            ensure_connected_to_nodes(Nodes);
         _ ->
             MnesiaNodes
     end.
     
 
 % @doc check is it disc node or not (should we create schema or not)
--spec is_disk_node() -> Result when
-    Result :: boolean().
+-spec is_disk_node(Nodes) -> Result when
+    Nodes   :: [node()],
+    Result  :: boolean().
 
-is_disk_node() ->
-    lists:member(node(), application:get_env(?app, 'db_leveldb_copies', [])).
+is_disk_node(Nodes) ->
+    lists:member(node(), Nodes).
 
 % @doc init table api (read timeout variable from sys.config). Default 1min
 -spec init_table(TableName, TableDef) -> Result when

@@ -173,7 +173,7 @@ init_table(TableName, TableDef, Timeout) ->
         false ->
             Result = mnesia:create_table(TableName, ExtDef),
             TableInfoRead = mnesia:table_info(TableName, 'where_to_read'),
-            TableInfoWrite = mnesia:table_info(TableName, 'where_to_read'),
+            TableInfoWrite = mnesia:table_info(TableName, 'where_to_write'),
             error_logger:info_msg("created table ~p with def ~p, read from ~p write to: ",[ExtDef,TableInfoRead,TableInfoWrite]),
             Result;
         true ->

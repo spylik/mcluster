@@ -1,6 +1,6 @@
 %% --------------------------------------------------------------------------------
 %% @author  Oleksii Semilietov <spylik@gmail.com>
-%% 
+%%
 %% @doc
 %% This source code is part of project "Maria" (https://github.com/spylik/maria).
 %% @end
@@ -13,7 +13,7 @@
     -compile(export_all).
 -endif.
 
-% @doc public api 
+% @doc public api
 -export([
         init/0,
         init/2,
@@ -46,19 +46,19 @@ init() -> init(true,'undefined').
 
 init(SendRPC, ForceDisk) ->
     ensure_mnesia_running(),
-    
+
     IsDiskNode = case ForceDisk of
-        'undefined' -> 
+        'undefined' ->
             _ = application:load(?app),
             is_disk_node(application:get_env(?app, 'db_leveldb_copies', []));
         _ -> ForceDisk
     end,
-    
+
     IsVirginNode = node_is_virgin(),
     ThisNode = node(),
 
     error_logger:info_msg("Node ~p IsDiskNode is ~p",[ThisNode, IsDiskNode]),
-    
+
     MnesiaNodes = ensure_connected_to_nodes(
         application:get_env(?app, 'db_ram_copies', []) ++
         application:get_env(?app, 'db_leveldb_copies', [])
@@ -68,7 +68,7 @@ init(SendRPC, ForceDisk) ->
     NodesWithoutRunningMnesia = MnesiaNodes -- NodesWithRunningMnesia,
 
     ok = try_start(IsDiskNode, IsVirginNode),
-    
+
     % send RPC call to start mnesia if we have another nodes without running mnesia
     _ = case SendRPC of
         true when NodesWithoutRunningMnesia =/= [] ->
@@ -90,7 +90,7 @@ init(SendRPC, ForceDisk) ->
         _ -> ok
     end.
 
-% @doc try mnesia start and reset folder in case on fail 
+% @doc try mnesia start and reset folder in case on fail
 -spec try_start(IsDiskNode, IsVirginNode) -> Result when
     IsDiskNode  :: boolean(),
     IsVirginNode:: boolean(),
@@ -130,15 +130,21 @@ is_running() ->
     Nodes   :: [node()],
     Result  :: [node()].
 ensure_connected_to_nodes(Nodes) ->
-    MnesiaNodes = [N || N <- Nodes -- [node()], net_adm:ping(N) =:= 'pong'],
-    case MnesiaNodes of
-        [] when Nodes =/= [] -> 
-            mlibs:wait_for("Waitings for more nodes"),
-            ensure_connected_to_nodes(Nodes);
-        _ ->
+    Self = node(),
+    case lists:filter(fun(Node) when Node =:= Self -> false; (_) -> true end, Nodes) of
+        [] ->
             MnesiaNodes
+        OtherNodes ->
+            MnesiaNodes = [N || N <- OtherNodes, net_adm:ping(N) =:= 'pong'],
+            case MnesiaNodes of
+                [] when Nodes =/= [] ->
+                    mlibs:wait_for("Waitings for more nodes"),
+                    ensure_connected_to_nodes(Nodes);
+                _ ->
+                    MnesiaNodes
+            end
     end.
-    
+
 
 % @doc check is it disc node or not (should we create schema or not)
 -spec is_disk_node(Nodes) -> Result when
@@ -169,7 +175,7 @@ init_table(TableName, TableDef) ->
 init_table(TableName, TableDef, Timeout) ->
     ExtDef = lists:sort(extend_table_def(TableDef)),
     AllTables = mnesia:system_info(tables),
-    {_, ok} = case lists:member(TableName, AllTables) of 
+    {_, ok} = case lists:member(TableName, AllTables) of
         false ->
             Result = mnesia:create_table(TableName, ExtDef),
             TableInfoRead = mnesia:table_info(TableName, 'where_to_read'),
@@ -189,14 +195,14 @@ init_table(TableName, TableDef, Timeout) ->
 
 wait_table(TableNames, Timeout) ->
     case mnesia:wait_for_tables(TableNames, Timeout) of
-        ok -> 
+        ok ->
             error_logger:info_msg("Tables ~p loaded",[TableNames]),
             {TableNames, ok};
         {timeout, BadTabs} ->
             error_logger:warning_msg("Timeout occurs during mnesia:wait_for_tables. ~p",[BadTabs]),
             _ = lists:map(fun(Table) ->
-                case get_running_mnesia_nodes(mnesia:table_info(Table, leveldb_copies)) of 
-                    [] -> 
+                case get_running_mnesia_nodes(mnesia:table_info(Table, leveldb_copies)) of
+                    [] ->
                         throw({error, {"Do not have active replicas who have table as leveldb_copies", Table}});
                     Replicas when is_list(Replicas) ->
                         error_logger:info_msg("Going to force_load ~p from leveldb_copies nodes ~p",[Table,Replicas]),
@@ -220,7 +226,7 @@ extend_table_def(TableDef) ->
         undefined -> 'undefined'
     end,
 
-    {TableDefExt0, HaveInDef} = 
+    {TableDefExt0, HaveInDef} =
     case lists:keyfind('ram_copies', 1, TableDef) of
         {'ram_copies', _} ->
             {TableDef, true};
@@ -230,7 +236,7 @@ extend_table_def(TableDef) ->
             {[{'ram_copies', RamFromConfig}|TableDef], true}
     end,
 
-    TableDefExt1 = 
+    TableDefExt1 =
     case lists:keyfind('leveldb_copies', 1, TableDefExt0) of
         {'leveldb_copies', _} ->
             TableDefExt0;
@@ -243,7 +249,7 @@ extend_table_def(TableDef) ->
     end,
     TableDefExt1.
 
-% @doc ensure mnesia is not running 
+% @doc ensure mnesia is not running
 -spec ensure_mnesia_not_running() -> Result when
     Result :: 'ok'.
 

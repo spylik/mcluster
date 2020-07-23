@@ -1,6 +1,12 @@
 PROJECT = mcluster
 
 # --------------------------------------------------------------------
+# Defining OTP version for this project which uses by kerl
+# --------------------------------------------------------------------
+
+ERLANG_OTP = OTP-22.3
+
+# --------------------------------------------------------------------
 # Compilation.
 # --------------------------------------------------------------------
 
@@ -51,7 +57,7 @@ endif
 SHELL_OPTS = +c true +C multi_time_warp -pa ebin/ test/ -eval 'lager:start(), mlibs:discover()' -env ERL_LIBS deps -run mlibs autotest_on_compile -sname mcluster
 
 # --------------------------------------------------------------------
-# We using erlang.mk 
+# We using erlang.mk
 # --------------------------------------------------------------------
 
 include erlang.mk

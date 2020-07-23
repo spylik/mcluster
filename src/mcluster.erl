@@ -60,8 +60,12 @@ init(SendRPC, ForceDisk) ->
     error_logger:info_msg("Node ~p IsDiskNode is ~p",[ThisNode, IsDiskNode]),
 
     MnesiaNodes = ensure_connected_to_nodes(
-        application:get_env(?app, 'db_ram_copies', []) ++
-        application:get_env(?app, 'db_leveldb_copies', [])
+        sets:to_list(
+            sets:from_list(
+                application:get_env(?app, 'db_ram_copies', []) ++
+                application:get_env(?app, 'db_leveldb_copies', [])
+            )
+        )
     ),
 
     NodesWithRunningMnesia = get_running_mnesia_nodes(MnesiaNodes),
@@ -133,7 +137,7 @@ ensure_connected_to_nodes(Nodes) ->
     Self = node(),
     case lists:filter(fun(Node) when Node =:= Self -> false; (_) -> true end, Nodes) of
         [] ->
-            MnesiaNodes
+            Nodes;
         OtherNodes ->
             MnesiaNodes = [N || N <- OtherNodes, net_adm:ping(N) =:= 'pong'],
             case MnesiaNodes of

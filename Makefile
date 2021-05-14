@@ -3,8 +3,9 @@ PROJECT = mcluster
 # --------------------------------------------------------------------
 # Defining OTP version for this project which uses by kerl
 # --------------------------------------------------------------------
-
-ERLANG_OTP = OTP-22.3
+ifneq ($(shell basename $(shell dirname $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))), deps)
+	ERLANG_OTP = OTP-22.3
+endif
 
 # --------------------------------------------------------------------
 # Compilation.

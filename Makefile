@@ -41,9 +41,9 @@ dep_teaser = git https://github.com/spylik/teaser
 # 3rd party
 dep_sync = git https://github.com/rustyio/sync
 dep_lager = git https://github.com/basho/lager
-dep_mnesia_eleveldb = git https://github.com/klarna/mnesia_eleveldb
+dep_mnesia_rocksdb = git https://github.com/aeternity/mnesia_rocksdb master
 
-DEPS = teaser lager mnesia_eleveldb
+DEPS = teaser lager dep_mnesia_rocksdb
 
 SHELL_DEPS = sync
 

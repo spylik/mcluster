@@ -50,7 +50,7 @@ init(SendRPC, ForceDisk) ->
     IsDiskNode = case ForceDisk of
         'undefined' ->
             _ = application:load(?app),
-            is_disk_node(application:get_env(?app, 'db_leveldb_copies', []));
+            is_disk_node(application:get_env(?app, 'db_rocksdb_copies', []));
         _ -> ForceDisk
     end,
 
@@ -63,7 +63,7 @@ init(SendRPC, ForceDisk) ->
         sets:to_list(
             sets:from_list(
                 application:get_env(?app, 'db_ram_copies', []) ++
-                application:get_env(?app, 'db_leveldb_copies', [])
+                application:get_env(?app, 'db_rocksdb_copies', [])
             )
         )
     ),
@@ -205,11 +205,11 @@ wait_table(TableNames, Timeout) ->
         {timeout, BadTabs} ->
             error_logger:warning_msg("Timeout occurs during mnesia:wait_for_tables. ~p",[BadTabs]),
             _ = lists:map(fun(Table) ->
-                case get_running_mnesia_nodes(mnesia:table_info(Table, leveldb_copies)) of
+                case get_running_mnesia_nodes(mnesia:table_info(Table, rocksdb_copies)) of
                     [] ->
-                        throw({error, {"Do not have active replicas who have table as leveldb_copies", Table}});
+                        throw({error, {"Do not have active replicas who have table as rocksdb_copies", Table}});
                     Replicas when is_list(Replicas) ->
-                        error_logger:info_msg("Going to force_load ~p from leveldb_copies nodes ~p",[Table,Replicas]),
+                        error_logger:info_msg("Going to force_load ~p from rocksdb_copies nodes ~p",[Table,Replicas]),
                         rpc:multicall(Replicas, 'mcluster', force_load, [Table])
                 end
             end, BadTabs),
@@ -241,15 +241,15 @@ extend_table_def(TableDef) ->
     end,
 
     TableDefExt1 =
-    case lists:keyfind('leveldb_copies', 1, TableDefExt0) of
-        {'leveldb_copies', _} ->
+    case lists:keyfind('rocksdb_copies', 1, TableDefExt0) of
+        {'rocksdb_copies', _} ->
             TableDefExt0;
         'false' when RamFromConfig =:= 'undefined', HaveInDef =:= 'false' ->
             [{'ram_copies', [node()]}|TableDef];
         'false' when RamFromConfig =:= 'undefined', HaveInDef =:= 'true' ->
             TableDef;
         'false' ->
-            [{'leveldb_copies', application:get_env(?app, 'db_leveldb_copies', [])}|TableDefExt0]
+            [{'rocksdb_copies', application:get_env(?app, 'db_rocksdb_copies', [])}|TableDefExt0]
     end,
     TableDefExt1.
 

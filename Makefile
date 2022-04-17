@@ -43,7 +43,7 @@ dep_sync = git https://github.com/rustyio/sync
 dep_lager = git https://github.com/basho/lager
 dep_mnesia_rocksdb = git https://github.com/aeternity/mnesia_rocksdb master
 
-DEPS = teaser lager dep_mnesia_rocksdb
+DEPS = teaser lager mnesia_rocksdb
 
 SHELL_DEPS = sync
 

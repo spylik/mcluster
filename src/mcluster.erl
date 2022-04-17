@@ -103,7 +103,7 @@ init(SendRPC, ForceDisk) ->
 try_start(IsDiskNode, IsVirginNode) ->
     case mnesia:start() of
         ok ->
-            {ok, _} = mnesia_eleveldb:register(),
+            {ok, _} = mnesia_rocksdb:register(),
             ensure_mnesia_running();
         Something when IsDiskNode =:= true andalso IsVirginNode =:= false ->
             error_logger:error_msg("~p",[Something]),

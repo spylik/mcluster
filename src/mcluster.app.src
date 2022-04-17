@@ -5,4 +5,4 @@
               {modules,[]},
               {registered,[mcluster]},
               {applications,[kernel,stdlib]},
-              {included_applications,[mnesia,mnesia_eleveldb]}]}.
+              {included_applications,[mnesia,mnesia_rocksdb]}]}.

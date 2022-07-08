@@ -31,7 +31,6 @@
 
 -define(mnesiadir, mnesia:system_info(directory)).
 -define(app, 'mcluster').
--define(backend_type, 'rocksdb_copies').
 
 % @doc init api
 -spec init() -> Result when
@@ -91,7 +90,7 @@ init(SendRPC, ForceDisk) ->
 
     case IsDiskNode of
         true when IsVirginNode =:= true ->
-            mnesia:change_table_copy_type(schema, node(), ?backend_type);
+            mnesia:change_table_copy_type(schema, node(), 'disc_copies');
         _ -> ok
     end.
 
@@ -206,11 +205,11 @@ wait_table(TableNames, Timeout) ->
         {timeout, BadTabs} ->
             error_logger:warning_msg("Timeout occurs during mnesia:wait_for_tables. ~p",[BadTabs]),
             _ = lists:map(fun(Table) ->
-                case get_running_mnesia_nodes(mnesia:table_info(Table, ?backend_type)) of
+                case get_running_mnesia_nodes(mnesia:table_info(Table, rocksdb_copies)) of
                     [] ->
-                        throw({error, {"Do not have active replicas who have table as ?backend_type", Table}});
+                        throw({error, {"Do not have active replicas who have table as rocksdb_copies", Table}});
                     Replicas when is_list(Replicas) ->
-                        error_logger:info_msg("Going to force_load ~p from ?backend_type nodes ~p",[Table,Replicas]),
+                        error_logger:info_msg("Going to force_load ~p from rocksdb_copies nodes ~p",[Table,Replicas]),
                         rpc:multicall(Replicas, 'mcluster', force_load, [Table])
                 end
             end, BadTabs),
@@ -242,15 +241,15 @@ extend_table_def(TableDef) ->
     end,
 
     TableDefExt1 =
-    case lists:keyfind(?backend_type, 1, TableDefExt0) of
-        {?backend_type, _} ->
+    case lists:keyfind('rocksdb_copies', 1, TableDefExt0) of
+        {'rocksdb_copies', _} ->
             TableDefExt0;
         'false' when RamFromConfig =:= 'undefined', HaveInDef =:= 'false' ->
             [{'ram_copies', [node()]}|TableDef];
         'false' when RamFromConfig =:= 'undefined', HaveInDef =:= 'true' ->
             TableDef;
         'false' ->
-            [{?backend_type, application:get_env(?app, 'db_rocksdb_copies', [])}|TableDefExt0]
+            [{'rocksdb_copies', application:get_env(?app, 'db_rocksdb_copies', [])}|TableDefExt0]
     end,
     TableDefExt1.
 

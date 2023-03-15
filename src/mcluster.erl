@@ -29,7 +29,6 @@
         reset_mnesia_folder/1
     ]).
 
--define(mnesiadir, mnesia:system_info(directory)).
 -define(app, 'mcluster').
 
 % @doc init api
@@ -101,6 +100,7 @@ init(SendRPC, ForceDisk) ->
     Result      :: ok.
 
 try_start(IsDiskNode, IsVirginNode) ->
+    ok = ensure_mnesia_dir(),
     case mnesia:start() of
         ok ->
             {ok, _} = mnesia_rocksdb:register(),
@@ -109,7 +109,6 @@ try_start(IsDiskNode, IsVirginNode) ->
             error_logger:error_msg("~p",[Something]),
             ok = ensure_mnesia_not_running(),
             ok = reset_mnesia_folder(),
-            ok = ensure_mnesia_dir(),
             try_start(IsDiskNode, true)
     end.
 
@@ -291,26 +290,29 @@ stop_mnesia() ->
     'stopped' = mnesia:stop(),
     ok = ensure_mnesia_not_running().
 
-% @doc ensure ?mnesiadir accessable
+% @doc ensure mnesiadir accessable
 -spec ensure_mnesia_dir() -> Result when
     Result :: 'ok'.
 
 ensure_mnesia_dir() ->
-    MnesiaDir = ?mnesiadir ++ "/",
-    case filelib:ensure_dir(?mnesiadir) of
+    MnesiaDir = mnesia_dir(),
+    case filelib:ensure_path(MnesiaDir) of
         {error, Reason} ->
-            error_logger:error_msg("Mnesia dir \"~p\" cann't create", [MnesiaDir]),
+            io:format("Mnesia dir \"~p\" cann't create", [MnesiaDir]),
             throw({'error', {'cannot_create_mnesia_dir', MnesiaDir, Reason}});
         ok ->
             ok
     end.
+
+ mnesia_dir() ->
+	application:get_env(mnesia, dir, mnesia:system_info(directory)).
 
 % @doc check is it virgin node or not
 -spec node_is_virgin() -> Result when
     Result :: boolean().
 
 node_is_virgin() ->
-    case prim_file:list_dir(?mnesiadir) of
+    case prim_file:list_dir(mnesia_dir()) of
         {error, enoent} ->
             true;
         {ok, []} ->
@@ -352,9 +354,9 @@ force_load(Table) when is_atom(Table) ->
 
 reset_mnesia_folder() ->
     stop_mnesia(),
-    Name = ?mnesiadir++"_backup_"++integer_to_list(mlibs:get_time()),
+    Name = mnesia_dir()++"_backup_"++integer_to_list(mlibs:get_time()),
     error_logger:info_msg("Going to reset mnesia folder. Backup saved to ~p", [Name]),
-    file:rename(?mnesiadir, Name).
+    file:rename(mnesia_dir(), Name).
 
 % @doc reset mnesia folder and do not save backup
 -spec reset_mnesia_folder('nobackup') -> Result when
@@ -362,4 +364,4 @@ reset_mnesia_folder() ->
 
 reset_mnesia_folder('nobackup') ->
     stop_mnesia(),
-    os:cmd("rm -Rf " ++ ?mnesiadir).
+    os:cmd("rm -Rf " ++ mnesia_dir()).

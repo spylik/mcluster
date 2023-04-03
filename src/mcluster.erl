@@ -304,6 +304,10 @@ ensure_mnesia_dir() ->
             ok
     end.
 
+% @doc determine mnesia directory
+-spec mnesia_dir() -> Result when
+    Result :: list().
+
  mnesia_dir() ->
 	application:get_env(mnesia, dir, mnesia:system_info(directory)).
 

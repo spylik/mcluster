@@ -15,6 +15,7 @@
 
 % @doc public api
 -export([
+        config_nodes/0,
         init/0,
         init/2,
         init_table/2,
@@ -31,11 +32,21 @@
 
 -define(app, 'mcluster').
 
+% ================================ public api ==================================
+
+-spec config_nodes() -> Result when
+    Result :: [node()].
+
+config_nodes() ->
+    application:get_env(?app, 'node_roles', maps:keys(#{})).
+
 % @doc init api
 -spec init() -> Result when
     Result :: ok.
 
-init() -> init(true,'undefined').
+init() -> init(true, 'undefined').
+
+% -------------------------- end of public api ---------------------------------
 
 % @doc init api for rpc calls
 -spec init(SendRPC,ForceDisk) -> Result when
@@ -48,7 +59,7 @@ init(SendRPC, ForceDisk) ->
 
     IsDiskNode = case ForceDisk of
         'undefined' ->
-            _ = application:load(?app),
+            %_ = application:load(?app),
             is_disk_node(application:get_env(?app, 'db_rocksdb_copies', []));
         _ -> ForceDisk
     end,

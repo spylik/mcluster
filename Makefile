@@ -27,7 +27,7 @@ ifeq ($(shell basename $(shell dirname $(shell dirname $(realpath $(lastword $(M
 	DEPS_DIR ?= $(shell dirname $(CURDIR))
 endif
 
-dep_teaser = git https://github.com/spylik/teaser
+dep_teaser = git https://github.com/spylik/teaser develop
 
 # 3rd party
 dep_sync = git https://github.com/rustyio/sync

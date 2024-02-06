@@ -30,8 +30,8 @@
 		nodes_with_role/1,
 		nodes_with_role/2,
 		live_nodes_with_role/1,
-		live_nodes_with_role/2,
-        clusters/0
+        clusters/0,
+        timestamp/0
     ]).
 
 -define(app, 'mcluster').
@@ -60,7 +60,7 @@
 nodes_to_auto_connect() ->
     NodesSpecs = nodes_specs(),
     ClusterId = node_cluster_id(node(), NodesSpecs),
-    RolesToConnectWith = deep_maps:get_in([node(), auto_connect_to_nodes_with_roles], NodesSpecs, []),
+    RolesToConnectWith = maps:get(auto_connect_to_nodes_with_roles, maps:get(node(), NodesSpecs, #{}), []),
     lists:uniq(lists:foldl(
       fun(Role, Acc) ->
           Acc ++ nodes_with_role(Role, ClusterId, NodesSpecs)
@@ -105,7 +105,7 @@ node_roles() -> node_roles(node()).
     Result  :: [role()].
 
 node_roles(Node) ->
-    deep_maps:get_in([Node, roles], nodes_specs(), []).
+    maps:get(roles, maps:get(Node, nodes_specs(), #{}), []).
 
 % @doc Check does the current node has given role or not
 -spec node_has_role(Role) -> Result when
@@ -160,13 +160,6 @@ live_nodes_with_role(Role) ->
 	NodesWithRole = nodes_with_role(Role, ClusterId, NodesSpecs),
     live_nodes_only(NodesWithRole).
 
--spec live_nodes_with_role(Role, ClusterId) -> Result when
-	Role		:: role(),
-	ClusterId	:: cluster_id(),
-	Result		:: [node()].
-
-live_nodes_with_role(Role, ClusterId) -> live_nodes_with_role(nodes_with_role(Role, ClusterId)).
-
 -spec live_nodes_only(NodeList) -> Result when
 	NodeList	:: [node()],
 	Result		:: [node()].
@@ -210,14 +203,14 @@ node_cluster_id(Node) -> node_cluster_id(Node, nodes_specs()).
     Result      :: cluster_id().
 
 node_cluster_id(Node, NodesSpecs) ->
-    deep_maps:get_in([Node, cluster_id], NodesSpecs, dev).
+    maps:get(cluster_id, maps:get(Node, NodesSpecs, #{}), dev).
 
 % @doc get the whole node roles config
 -spec nodes_specs() -> Result when
     Result  :: nodes_specs().
 
 nodes_specs() ->
-    application:load(?app),
+    _ = application:load(?app),
     application:get_env(?app, 'nodes_specs', #{}).
 
 -spec node_spec() -> Result when
@@ -231,3 +224,8 @@ node_spec() ->
     Result  :: node_spec().
 
 node_spec(Node) -> maps:get(Node, nodes_specs()).
+
+-spec timestamp() -> Result when
+    Result  :: pos_integer().
+
+timestamp() -> erlang:system_time(millisecond).

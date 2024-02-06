@@ -59,6 +59,8 @@ dep_sync = git https://github.com/rustyio/sync
 
 DEPS = hut rocksdb mnesia_rocksdb
 
+PLT_APPS = mnesia crypto
+
 SHELL_DEPS = sync teaser
 
 # --------------------------------------------------------------------

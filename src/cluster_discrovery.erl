@@ -15,8 +15,6 @@
     -compile(export_all).
 -endif.
 
--define(TIME_UNIT, millisecond).
-
 -include_lib("kernel/include/logger.hrl").
 
 % gen_server is here
@@ -73,7 +71,7 @@ init([]) ->
     case net_kernel:monitor_nodes(true) of
         ok ->
             erlang:send(self(), connect_all),
-            Time = erlang:system_time(?TIME_UNIT),
+            Time = mcluster_utils:timestamp(),
             {
                 ok,
                 #cluster_state{
@@ -138,11 +136,12 @@ handle_info({nodedown, Node}, #cluster_state{auto_connect_statuses = AutoConnect
     MaybeUpdatedState = case maps:get(Node, AutoConnectStatuses, undefined) of
         #up{} ->
 			NextAttemptRef = schedule_reconnect(Node),
-			Time = erlang:system_time(?TIME_UNIT),
+			Time = mcluster_utils:timestamp(),
 			State#cluster_state{
 				auto_connect_statuses = maps:put(
 					Node,
-					#down{down_from = Time, last_attempt = Time, attempts = 1, reconnect_ref = NextAttemptRef}
+					#down{down_from = Time, last_attempt = Time, attempts = 1, reconnect_ref = NextAttemptRef},
+                    AutoConnectStatuses
 				)
 			};
         _UndefinedOrDown ->
@@ -157,7 +156,7 @@ handle_info({nodedown, Node}, #cluster_state{auto_connect_statuses = AutoConnect
 
 handle_info({nodeup, Node}, #cluster_state{auto_connect_statuses = AutoConnectStatuses, clients_statuses = ClientsStatuses} = State) ->
     ?LOG_INFO("mcluster node ~p UP", [Node]),
-	Up = #up{timestamp = erlang:system_time(?TIME_UNIT)},
+	Up = #up{timestamp = mcluster_utils:timestamp()},
 	MaybeUpdatedState = case maps:get(Node, AutoConnectStatuses, undefined) of
 		undefined ->
 			State#cluster_state{clients_statuses = maps:put(Node, Up, ClientsStatuses)};
@@ -180,7 +179,7 @@ handle_info({cancel_timer, _Ref, _IsExpired}, State) ->
 handle_info(connect_all, State) ->
     NodesToConnect = mcluster_utils:nodes_to_auto_connect(),
     ConnectedNodes = nodes(),
-    Time = erlang:system_time(?TIME_UNIT),
+    Time = mcluster_utils:timestamp(),
     MaybeUpdatedState =
         lists:foldl(fun
             (Node, StateAcc) ->
@@ -229,7 +228,7 @@ code_change(_OldVsn, State, _Extra) ->
 may_cancel_timer(undefined, _Node) -> false;
 may_cancel_timer(#up{}, _Node) -> false;
 may_cancel_timer(#down{reconnect_ref = ReconnectRef}, Node) ->
-	erlang:cancel_timer(ReconnectRef, [{async, true}]),
+	_ = erlang:cancel_timer(ReconnectRef, [{async, true}]),
     receive
     	{try_reconnect, Node} ->
         	true
@@ -253,7 +252,7 @@ schedule_reconnect(Node) ->
 	State	:: cluster_state(),
 	Result	:: cluster_state().
 
-may_connect_node(Node, State) -> may_connect_node(Node, State, nodes(), erlang:system_time(?TIME_UNIT)).
+may_connect_node(Node, State) -> may_connect_node(Node, State, nodes(), mcluster_utils:timestamp()).
 
 -spec may_connect_node(Node, State, NodesFromNodeCommand, Time) -> Result when
     Node                    :: node(),

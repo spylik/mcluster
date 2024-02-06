@@ -13,6 +13,8 @@
     -compile(export_all).
 -endif.
 
+-include_lib("kernel/include/logger.hrl").
+
 % @doc public api
 -export([
         init/0,
@@ -141,7 +143,8 @@ ensure_connected_to_nodes(Nodes) ->
             MnesiaNodes = [N || N <- OtherNodes, net_adm:ping(N) =:= 'pong'],
             case MnesiaNodes of
                 [] when Nodes =/= [] ->
-                    mlibs:wait_for("Waitings for more nodes"),
+                    ?LOG_INFO("Waitings for more nodes"),
+                    timer:sleep(1000),
                     ensure_connected_to_nodes(Nodes);
                 _ ->
                     MnesiaNodes
@@ -260,7 +263,9 @@ ensure_mnesia_not_running() ->
     case mnesia:system_info(is_running) of
         'no' -> ok;
         'stopping' ->
-            mlibs:wait_for("Mnesia stopping. Waiting for mnesia_not_running"),
+            ?LOG_INFO("Mnesia stopping. Waiting for mnesia_not_running"),
+            timer:sleep(1000),
+
             ensure_mnesia_not_running();
         Reason when Reason =:= 'yes'; Reason =:= 'starting' ->
             throw({error, mnesia_unexpectedly_running})
@@ -274,7 +279,8 @@ ensure_mnesia_running() ->
     case mnesia:system_info(is_running) of
         'yes' -> ok;
         'starting' ->
-            mlibs:wait_for("Mnesia startning. Waiting for full start."),
+			?LOG_INFO("Mnesia startning. Waiting for full start."),
+			timer:sleep(1000),
             ensure_mnesia_running();
         'no' ->
             mnesia:start();
@@ -358,7 +364,7 @@ force_load(Table) when is_atom(Table) ->
 
 reset_mnesia_folder() ->
     stop_mnesia(),
-    Name = mnesia_dir()++"_backup_"++integer_to_list(mlibs:get_time()),
+    Name = mnesia_dir()++"_backup_"++integer_to_list(mcluster_utils:timestamp()),
     error_logger:info_msg("Going to reset mnesia folder. Backup saved to ~p", [Name]),
     file:rename(mnesia_dir(), Name).
 

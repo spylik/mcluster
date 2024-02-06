@@ -15,7 +15,7 @@
     -compile(export_all).
 -endif.
 
--define(TIME_UNIT, milliseconds).
+-define(TIME_UNIT, millisecond).
 
 -include_lib("kernel/include/logger.hrl").
 
@@ -254,6 +254,13 @@ schedule_reconnect(Node) ->
 	Result	:: cluster_state().
 
 may_connect_node(Node, State) -> may_connect_node(Node, State, nodes(), erlang:system_time(?TIME_UNIT)).
+
+-spec may_connect_node(Node, State, NodesFromNodeCommand, Time) -> Result when
+    Node                    :: node(),
+    State                   :: cluster_state(),
+    NodesFromNodeCommand    :: [node()],
+    Time                    :: pos_integer(),
+    Result                  :: cluster_state().
 
 may_connect_node(Node, #cluster_state{auto_connect_statuses = AutoConnectStatuses, clients_statuses = ClientStatuses} = State, ConnectedNodes, Time) ->
 	case lists:member(Node, ConnectedNodes) of

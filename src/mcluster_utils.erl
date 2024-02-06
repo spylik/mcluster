@@ -23,20 +23,15 @@
         node_spec/1,
         node_roles/0,
         node_roles/1,
+        node_cluster_id/0,
+        node_cluster_id/1,
 		node_has_role/1,
 		node_has_role/2,
 		nodes_with_role/1,
 		nodes_with_role/2,
 		live_nodes_with_role/1,
 		live_nodes_with_role/2,
-        node_markets/0,
-        node_markets/1,
-        node_cluster_id/0,
-        node_cluster_id/1,
-        config_runtimes/0,
-        whereis_market/1,
-		is_market/1,
-        default_markets/1
+        clusters/0
     ]).
 
 -define(app, 'mcluster').
@@ -46,16 +41,16 @@
 
 -type node_spec() :: #{}.
 
--type role() :: maria | kawbo_gql.
-
--type market() :: atom().
-
--type market_config() :: #{}.
+-type role() :: atom().
 
 % atom cuz we support parralel runtime env (like dev0, staging3, etc).
 -type cluster_id() :: dev | prod | staging | atom().
 
--export_type([nodes_specs/0]).
+-export_type([
+        nodes_specs/0,
+        role/0,
+        cluster_id/0
+    ]).
 
 % ================================ public api ==================================
 
@@ -80,8 +75,17 @@ config_nodes() ->
     ClusterId = node_cluster_id(node(), NodesSpecs),
     config_nodes(ClusterId, NodesSpecs).
 
+-spec config_nodes(ClusterId) -> Result when
+    ClusterId   :: cluster_id(),
+    Result      :: [node()].
+
 config_nodes(ClusterId) ->
     config_nodes(ClusterId, nodes_specs()).
+
+-spec config_nodes(ClusterId, NodesSpecs) -> Result when
+    ClusterId   :: cluster_id(),
+    NodesSpecs  :: nodes_specs(),
+    Result      :: [node()].
 
 config_nodes(ClusterId, NodesSpecs) ->
 	maps:fold(fun
@@ -127,6 +131,12 @@ nodes_with_role(Role) ->
 
 nodes_with_role(Role, ClusterId) ->
     nodes_with_role(Role, ClusterId, nodes_specs()).
+
+-spec nodes_with_role(Role, ClusterId, NodesSpecs) -> Result when
+    Role        :: role(),
+    ClusterId   :: cluster_id(),
+    NodesSpecs  :: nodes_specs(),
+    Result      :: [node()].
 
 nodes_with_role(Role, ClusterId, NodesSpecs) ->
 	maps:fold(fun
@@ -174,177 +184,11 @@ live_nodes_only(NodeList) ->
 node_has_role(Node, Role) ->
 	lists:member(Role, node_roles(Node)).
 
--spec config_runtimes() -> Result when
+-spec clusters() -> Result when
     Result  :: [cluster_id()].
 
-config_runtimes() ->
+clusters() ->
    lists:uniq(maps:fold(fun(_Node, #{cluster_id := Runtime}, Acc) -> [Runtime | Acc] end, [], nodes_specs())).
-
--spec whereis_market(Market) -> Result when
-    Market  :: market(),
-    Result  :: [node()].
-
-whereis_market(Market) ->
-    whereis_market(Market, maria).
-
--spec whereis_market(Market, Role) -> Result when
-    Market  :: market(),
-	Role	:: role(),
-    Result  :: [node()].
-
-whereis_market(Market, Role) ->
-    NodesSpecs = nodes_specs(),
-    ClusterId = node_cluster_id(node(), NodesSpecs),
-    whereis_market(Market, Role, ClusterId, NodesSpecs).
-
--spec whereis_market(Market, Role, ClusterId, NodesSpecs) -> Result when
-    Market  	:: market(),
-	Role		:: role(),
-	ClusterId	:: cluster_id(),
-	NodesSpecs	:: nodes_specs(),
-    Result  	:: [node()].
-
-whereis_market(Market, Role, ClusterId, NodesSpecs) ->
-    maps:fold(fun
-        (Node, #{cluster_id := NodeClusterId, roles := Roles} = Config, Acc) when NodeClusterId =:= ClusterId ->
-            case lists:member(Role, Roles) of
-                true ->
-                    case deep_maps:get_in([Role, markets], Config, default_markets(Role)) of
-                        none ->
-                            Acc;
-                        Markets ->
-							case lists:member(Market, Markets) of
-								true ->
-		                            [Node | Acc];
-								false ->
-									Acc
-							end
-                    end;
-                false ->
-                    Acc
-            end;
-        (_Node, _Config, Acc) -> Acc
-    end, [], NodesSpecs).
-
--spec node_markets() -> Result when
-    Result  :: [market()].
-
-node_markets() ->
-    node_markets(node()).
-
--spec node_markets(Node) -> Result when
-    Node    :: node(),
-    Result  :: [market()].
-
-node_markets(Node) ->
-    node_markets(Node, maria).
-
--spec node_markets(Node, Role) -> Result when
-    Node    :: node(),
-    Role    :: role(),
-    Result  :: [market()].
-
-node_markets(Node, Role) ->
-    case node_spec(Node) of
-        #{roles := Roles} = Config ->
-            case lists:member(Role, Roles) of
-                true ->
-                    deep_maps:get_in([Role, markets], Config, default_markets(Role));
-				false ->
-					[]
-			end;
-		_Another ->
-			[]
-	end.
-
--spec default_markets(Role) -> Result when
-    Role    :: role(),
-    Result  :: [market()].
-
-default_markets(Role) ->
-   _ = application:load(Role),
-   case os:getenv("MARKETS") of
-       false ->
-           case application:get_env(Role, markets, none) of
-               none -> [];
-               all -> known_markets();
-               ListOfMarkets -> ListOfMarkets
-           end;
-       Markets ->
-           [list_to_existing_atom(Market) || Market <- string:tokens(Markets, ",")]
-    end.
-
--spec known_markets() -> Result when
-	Result	:: [market()].
-
-known_markets() ->
-	known_markets(maria).
-
--spec known_markets(Role) -> Result when
-    Role    :: role(),
-    Result  :: [market()].
-
-known_markets(Role) ->
-	Node = node(),
-	case node_has_role(Node, Role) of
-		true ->
-			known_markets_from_modules();
-		false ->
-            % todo:
-			nodes_with_role(Role, node_cluster_id(Node))
-	end.
-
-% @doc get known markets based on codebase
--spec known_markets_from_modules() -> Result when
-    Result  :: [markets:market()].
-
-known_markets_from_modules() -> known_markets_from_modules(not_force_loaded).
-
--spec known_markets_from_modules(ForceLoadStatus) -> Result when
-    ForceLoadStatus :: not_force_loaded | force_loaded,
-    Result          :: [markets:market()].
-
-known_markets_from_modules(ForceLoadStatus) ->
-    case application:get_key(?app, modules) of
-        {ok, Modules} ->
-            lists:foldl(fun(ModuleName, Acc) ->
-                case is_market(ModuleName) of
-                    false ->
-                        Acc;
-                    true ->
-                        [ModuleName | Acc]
-                end
-            end, [], Modules);
-        undefined when ForceLoadStatus =:= not_force_loaded ->
-            ok = application:load(?app),
-            known_markets(force_loaded);
-        undefined ->
-            []
-    end.
-
--spec is_market(Input) -> Result when
-    Input   :: binary() | atom(),
-    Result  :: boolean().
-
-is_market(Input) when is_atom(Input) ->
-    try
-        case lists:keyfind(behaviour, 1, Input:module_info(attributes)) of
-            false -> false;
-            {behaviour, Behaviours} ->
-                lists:member(?MODULE, Behaviours)
-        end
-    catch
-        _:_ ->
-            false
-    end;
-
-is_market(Input) when is_binary(Input) ->
-    try
-        is_market(erlang:binary_to_existing_atom(string:lowercase(Input), utf8))
-    catch
-        _:_ ->
-            false
-    end.
 
 % @doc get the node environment
 -spec node_cluster_id() -> Result when

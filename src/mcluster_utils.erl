@@ -25,6 +25,7 @@
         node_roles/1,
         node_cluster_id/0,
         node_cluster_id/1,
+        node_cluster_id/2,
 		node_has_role/1,
 		node_has_role/2,
 		nodes_with_role/1,

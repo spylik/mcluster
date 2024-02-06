@@ -40,7 +40,14 @@
 % todo: typing
 -type nodes_specs() :: #{node() => node_spec()}.
 
--type node_spec() :: #{}.
+-type node_spec() :: #{
+    roles => [role()],
+    auto_connect_to_nodes_with_roles => [role()],
+    cluster_id => cluster_id(),
+    role() => role_configuration()
+}.
+
+-type role_configuration() :: map().
 
 -type role() :: atom().
 

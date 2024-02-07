@@ -7,7 +7,7 @@ _rel/
 _build/
 cover/
 .erlang.mk/
-Mnesia*
+Mnesia*/
 *.dump
 erl_crash.dump
 .erlang.mk.packages.v2

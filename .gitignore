@@ -21,3 +21,4 @@ test/ct.cover.spec
 doc/*
 eunit.coverdata
 mcluster.d
+recompile.log

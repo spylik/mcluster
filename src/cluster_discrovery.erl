@@ -25,8 +25,8 @@
     clients_statuses = #{}          :: #{node() => node_state()}
 }).
 
--define(RECONNECT_FROM, 500).
--define(RECONNECT_TO, 1500).
+-define(RECONNECT_FROM, 1000).
+-define(RECONNECT_TO, 2500).
 -define(UNIFORM_RANGE, ?RECONNECT_TO - ?RECONNECT_FROM).
 
 -record(up, {
@@ -155,7 +155,7 @@ handle_info({nodedown, Node}, #cluster_state{auto_connect_statuses = AutoConnect
     };
 
 handle_info({nodeup, Node}, #cluster_state{auto_connect_statuses = AutoConnectStatuses, clients_statuses = ClientsStatuses} = State) ->
-    ?LOG_INFO("mcluster node ~p UP", [Node]),
+    ?LOG_WARNING("mcluster node ~p UP", [Node]),
 	Up = #up{timestamp = mcluster_utils:timestamp()},
 	MaybeUpdatedState = case maps:get(Node, AutoConnectStatuses, undefined) of
 		undefined ->
@@ -266,6 +266,7 @@ may_connect_node(Node, #cluster_state{auto_connect_statuses = AutoConnectStatuse
 	    false ->
 	        case net_kernel:connect_node(Node) of
 	            true ->
+                    ?LOG_WARNING("mcluster node ~p UP", [Node]),
 	                Up = #up{timestamp = Time},
 	                _ = may_cancel_timer(maps:get(Node, AutoConnectStatuses, undefined), Node),
 	                State#cluster_state{

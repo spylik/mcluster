@@ -67,7 +67,7 @@ SHELL_DEPS = sync teaser
 # Development enviroment ("make shell" to run it).
 # --------------------------------------------------------------------
 
-SHELL_OPTS = -config sys.config -args_file vm.args.development -pa ebin/ test/ -eval 'tutils:discover()' -env ERL_LIBS deps -run tutils autotest_on_compile -name mcluster@dev
+SHELL_OPTS = -config sys.config -args_file vm.args.development -pa ebin/ test/ -eval 'tutils:discover()' -env ERL_LIBS deps -run tutils autotest_on_compile -name mcluster@dev-backend.kawbo.com
 
 # --------------------------------------------------------------------
 # We using erlang.mk

@@ -230,7 +230,7 @@ node_spec() ->
     Node    :: node(),
     Result  :: node_spec().
 
-node_spec(Node) -> maps:get(Node, nodes_specs()).
+node_spec(Node) -> maps:get(Node, nodes_specs(), #{}).
 
 -spec timestamp() -> Result when
     Result  :: pos_integer().
